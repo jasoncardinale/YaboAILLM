@@ -2,6 +2,7 @@ import os
 import re
 import tempfile
 import time
+import uuid
 
 import ollama
 import pygame
@@ -18,15 +19,34 @@ AUDIO_DIR = "audio_responses"
 os.makedirs(AUDIO_DIR, exist_ok=True)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+# Initialize a persistent session ID
+SESSION_ID = str(uuid.uuid4())
+
+# Define the system prompt
+SYSTEM_PROMPT = (
+    "You are an F1 commentator with the personality of Jeremy Clarkson. "
+    "Provide humorous and insightful commentary about F1 races, drivers, and events. "
+    "Do not include any sound effects, stage directions, or descriptions of sounds or vocal effects. "
+    "Limit your response to a few sentences. "
+    "Here is the latest event that you need to comment on: "
+)
+
+tts = TTS(
+    model_name="tts_models/en/ljspeech/speedy-speech",
+    progress_bar=False,
+    gpu=True if device == "cuda" else False,
+)
+
+
 def remove_emojis(text):
     """
     Removes emojis and other non-standard characters from the text.
     """
     emoji_pattern = re.compile(
-        "[\U0001F600-\U0001F64F]|"  # Emoticons
-        "[\U0001F300-\U0001F5FF]|"  # Symbols & pictographs
-        "[\U0001F680-\U0001F6FF]|"  # Transport & map symbols
-        "[\U0001F1E0-\U0001F1FF]",  # Flags
+        "[\U0001f600-\U0001f64f]|"  # Emoticons
+        "[\U0001f300-\U0001f5ff]|"  # Symbols & pictographs
+        "[\U0001f680-\U0001f6ff]|"  # Transport & map symbols
+        "[\U0001f1e0-\U0001f1ff]",  # Flags
         flags=re.UNICODE,
     )
     return emoji_pattern.sub("", text)
@@ -37,9 +57,6 @@ def text_to_speech_ai(text, audio_file_path):
     Converts text to speech using an AI-based TTS model and saves it as a WAV file.
     """
     try:
-        # Initialize the TTS model (you can specify a different model if needed)
-        tts = TTS(model_name="tts_models/en/ljspeech/speedy-speech", progress_bar=False, gpu=False)
-
         # Generate the WAV file
         tts.tts_to_file(text=text, file_path=audio_file_path)
         return True
@@ -70,8 +87,8 @@ def play_audio(audio_file_path):
 
 def process_prompt():
     """
-    Reads the prompt from the prompt file, generates a response, converts it to speech,
-    plays the audio, and writes the status to the status file.
+    Reads the prompt from the prompt file, generates a response in a persistent session,
+    converts it to speech, plays the audio, and writes the status to the status file.
     """
     try:
         # Check if the prompt file exists
@@ -87,11 +104,13 @@ def process_prompt():
 
         print(f"Processing prompt: {prompt}")
 
-        # Send the prompt to Ollama
-        response = ollama.generate(model="gemma3:4b", prompt=prompt)
+        response = ollama.chat(
+            model="gemma3:4b",
+            messages=[{"role": "user", "content": SYSTEM_PROMPT + prompt}],
+        )
 
         # Extract the response text
-        response_text = response["response"].strip()
+        response_text = response["message"]["content"].strip()
 
         # Remove emojis from the response
         response_text = remove_emojis(response_text)
@@ -117,15 +136,15 @@ def process_prompt():
         # Write success status
         with open(STATUS_FILE, "w", encoding="utf-8") as f:
             f.write("true")
-
-        # Clear the prompt file after processing
-        os.remove(PROMPT_FILE)
-
     except Exception as e:
         print(f"Error processing prompt: {e}")
         # Write failure status
         with open(STATUS_FILE, "w", encoding="utf-8") as f:
             f.write("false")
+    finally:
+        # Clean up the prompt file after processing
+        if os.path.exists(PROMPT_FILE):
+            os.remove(PROMPT_FILE)
 
 
 def main():
@@ -133,9 +152,14 @@ def main():
     Continuously monitors the prompt file for new prompts and processes them.
     """
     print("Starting Ollama file processor...")
+    if os.path.exists(PROMPT_FILE):
+        os.remove(PROMPT_FILE)
+    if os.path.exists(STATUS_FILE):
+        os.remove(STATUS_FILE)
+
     while True:
         process_prompt()
-        time.sleep(0.5)  # Check for new prompts every 500ms
+        time.sleep(0.5)
 
 
 if __name__ == "__main__":
