@@ -32,7 +32,7 @@ SYSTEM_PROMPT = (
 )
 
 tts = TTS(
-    model_name="tts_models/en/ljspeech/speedy-speech",
+    model_name="tts_models/en/ljspeech/glow-tts",
     progress_bar=False,
     gpu=True if device == "cuda" else False,
 )
