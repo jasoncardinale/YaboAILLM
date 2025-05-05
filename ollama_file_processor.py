@@ -1,13 +1,17 @@
-import time
 import os
-import ollama
 import re
-import pygame  # For playing audio
-from TTS.TTS.api import TTS
+import tempfile
+import time
+
+import ollama
+import pygame
 import torch
-# File paths
-PROMPT_FILE = "prompt.txt"
-STATUS_FILE = "status.txt"
+
+from TTS.TTS.api import TTS
+
+TEMP_DIR = tempfile.gettempdir()
+PROMPT_FILE = os.path.join(TEMP_DIR, "prompt.txt")
+STATUS_FILE = os.path.join(TEMP_DIR, "status.txt")
 AUDIO_DIR = "audio_responses"
 
 # Ensure the audio directory exists
