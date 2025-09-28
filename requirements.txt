@@ -1,0 +1,4 @@
+ollama
+pygame
+torch
+trainer

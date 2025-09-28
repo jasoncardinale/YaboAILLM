@@ -1,3 +1,4 @@
 .vscode/settings.json
 venv/
 audio_responses/
+.DS_Store
