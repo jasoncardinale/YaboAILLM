@@ -15,14 +15,11 @@ PROMPT_FILE = os.path.join(TEMP_DIR, "yaboai_prompt.txt")
 STATUS_FILE = os.path.join(TEMP_DIR, "yaboai_status.txt")
 AUDIO_DIR = "audio_responses"
 
-# Ensure the audio directory exists
 os.makedirs(AUDIO_DIR, exist_ok=True)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Initialize a persistent session ID
 SESSION_ID = str(uuid.uuid4())
 
-# Define the system prompt
 SYSTEM_PROMPT = (
     "You are an F1 commentator with the personality of Jeremy Clarkson. "
     "Provide humorous and insightful commentary about F1 races, drivers, and events. "
@@ -57,7 +54,6 @@ def text_to_speech_ai(text, audio_file_path):
     Converts text to speech using an AI-based TTS model and saves it as a WAV file.
     """
     try:
-        # Generate the WAV file
         tts.tts_to_file(text=text, file_path=audio_file_path)
         return True
     except Exception as e:
@@ -74,7 +70,6 @@ def play_audio(audio_file_path):
         pygame.mixer.music.load(audio_file_path)
         pygame.mixer.music.play()
 
-        # Wait until the audio finishes playing
         while pygame.mixer.music.get_busy():
             time.sleep(0.1)
 
@@ -91,11 +86,9 @@ def process_prompt():
     converts it to speech, plays the audio, and writes the status to the status file.
     """
     try:
-        # Check if the prompt file exists
         if not os.path.exists(PROMPT_FILE):
             return
 
-        # Read the prompt from the file
         with open(PROMPT_FILE, "r", encoding="utf-8") as f:
             prompt = f.read().strip()
 
@@ -109,40 +102,29 @@ def process_prompt():
             messages=[{"role": "user", "content": SYSTEM_PROMPT + prompt}],
         )
 
-        # Extract the response text
         response_text = response["message"]["content"].strip()
-
-        # Remove emojis from the response
         response_text = remove_emojis(response_text)
-
         print(f"Generated response: {response_text}")
 
-        # Generate the audio file
         audio_file_path = os.path.join(AUDIO_DIR, "response.wav")
         if not text_to_speech_ai(response_text, audio_file_path):
-            # Write failure status
             with open(STATUS_FILE, "w", encoding="utf-8") as f:
                 f.write("false")
             return
 
-        # Play the audio file
         print(f"Playing audio: {audio_file_path}")
         if not play_audio(audio_file_path):
-            # Write failure status
             with open(STATUS_FILE, "w", encoding="utf-8") as f:
                 f.write("false")
             return
 
-        # Write success status
         with open(STATUS_FILE, "w", encoding="utf-8") as f:
             f.write("true")
     except Exception as e:
         print(f"Error processing prompt: {e}")
-        # Write failure status
         with open(STATUS_FILE, "w", encoding="utf-8") as f:
             f.write("false")
     finally:
-        # Clean up the prompt file after processing
         if os.path.exists(PROMPT_FILE):
             os.remove(PROMPT_FILE)
 
